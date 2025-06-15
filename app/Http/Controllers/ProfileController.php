@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\Features;
 use Illuminate\Support\Str;
 
@@ -18,15 +19,43 @@ class ProfileController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'nickname' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . auth()->id()],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'city' => ['nullable', 'string', 'max:100'],
         ]);
 
         auth()->user()->update([
             'name' => $request->name,
+            'nickname' => $request->nickname,
             'email' => $request->email,
+            'phone' => $request->phone,
+            'city' => $request->city,
         ]);
 
         return back()->with('status', 'Profile updated successfully.');
+    }
+
+    public function updateAvatar(Request $request)
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'max:2048'], // 2MB Max
+        ]);
+
+        $user = auth()->user();
+
+        // Delete old avatar if exists
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        // Store the new avatar
+        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $user->update([
+            'avatar' => $avatarPath
+        ]);
+
+        return back()->with('status', 'Avatar updated successfully.');
     }
 
     public function updatePassword(Request $request)
@@ -81,5 +110,27 @@ class ProfileController extends Controller
         ])->save();
 
         return back()->with('status', 'Two-factor authentication disabled successfully.');
+    }
+
+    public function destroy(Request $request)
+    {
+        $request->validate([
+            'password' => ['required', 'current_password'],
+        ]);
+
+        $user = auth()->user();
+
+        // Delete avatar if exists
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        auth()->logout();
+        $user->delete();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Account deleted successfully.');
     }
 }

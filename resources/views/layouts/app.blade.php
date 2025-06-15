@@ -54,7 +54,10 @@
                         @else
                             <li class="nav-item dropdown">
                                 <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                                    {{ Auth::user()->name }}
+                                    @if(Auth::user()->avatar)
+                                        <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="Profile" class="rounded-circle me-1" width="24" height="24">
+                                    @endif
+                                    {{ Auth::user()->nickname ?? Auth::user()->name }}
                                 </a>
 
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">

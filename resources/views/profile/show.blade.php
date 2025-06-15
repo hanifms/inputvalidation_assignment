@@ -5,58 +5,48 @@ use Laravel\Fortify\Features;
 <x-profile-layout>
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <!-- Two Factor Authentication Info -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">Two Factor Authentication (2FA)</h4>
-                </div>
-                <div class="card-body">
-                    <div class="text-muted mb-4">
-                        <p class="fw-medium mb-3">
-                            Add an extra layer of security to your account with Two-Factor Authentication (2FA).
-                        </p>
-
-                        <div class="alert alert-info">
-                            <h5 class="alert-heading fw-bold mb-3">How Two-Factor Authentication Works:</h5>
-                            <ol class="mb-0">
-                                <li class="mb-3">When you enable 2FA, your account will require two forms of verification to log in:
-                                    <ul class="mt-2">
-                                        <li>Your regular password</li>
-                                        <li>A one-time verification code sent to your email</li>
-                                    </ul>
-                                </li>
-                                <li class="mb-3">Each time you log in:
-                                    <ul class="mt-2">
-                                        <li>First, enter your email and password as usual</li>
-                                        <li>Then, you'll receive a 6-digit code via email</li>
-                                        <li>Enter this code to complete your login</li>
-                                    </ul>
-                                </li>
-                                <li>About the verification code:
-                                    <ul class="mt-2">
-                                        <li>Is valid for 10 minutes only</li>
-                                        <li>Can only be used once</li>
-                                        <li>A new code is generated for each login attempt</li>
-                                    </ul>
-                                </li>
-                            </ol>
-                        </div>
-
-                        <div class="alert alert-warning mt-4">
-                            <h5 class="alert-heading fw-bold">Important Note:</h5>
-                            <p class="mb-0">
-                                Make sure you have access to your email account before enabling 2FA.
-                                You'll need it to receive verification codes for all future logins.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <!-- Back Button -->
             <div class="mb-4">
                 <button onclick="window.history.back()" class="btn btn-secondary">
                     <i class="fas fa-arrow-left"></i> Back
                 </button>
+            </div>
+
+            <!-- Avatar -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Profile Picture</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center mb-3">
+                            @if(auth()->user()->avatar)
+                                <img src="{{ Storage::url(auth()->user()->avatar) }}" alt="Profile Picture" class="rounded-circle img-fluid mb-3" style="max-width: 150px; max-height: 150px;">
+                            @else
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mb-3 mx-auto" style="width: 150px; height: 150px;">
+                                    <span class="text-white" style="font-size: 50px;">{{ substr(auth()->user()->name, 0, 1) }}</span>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="col-md-8">
+                            <form method="POST" action="{{ route('profile.avatar.update') }}" enctype="multipart/form-data">
+                                @csrf
+                                <div class="mb-3">
+                                    <label for="avatar" class="form-label">Upload New Profile Picture</label>
+                                    <input type="file" class="form-control @error('avatar') is-invalid @enderror"
+                                        id="avatar" name="avatar" accept="image/*">
+                                    <small class="form-text text-muted">Max size 2MB. Recommended size: 300x300px</small>
+                                    @error('avatar')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    Update Profile Picture
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Profile Information -->
@@ -79,10 +69,38 @@ use Laravel\Fortify\Features;
                         </div>
 
                         <div class="mb-3">
+                            <label for="nickname" class="form-label">Nickname</label>
+                            <input type="text" class="form-control @error('nickname') is-invalid @enderror"
+                                id="nickname" name="nickname" value="{{ old('nickname', auth()->user()->nickname) }}">
+                            <small class="form-text text-muted">This will be displayed in the top right menu</small>
+                            @error('nickname')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <input type="email" class="form-control @error('email') is-invalid @enderror"
                                 id="email" name="email" value="{{ old('email', auth()->user()->email) }}">
                             @error('email')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control @error('phone') is-invalid @enderror"
+                                id="phone" name="phone" value="{{ old('phone', auth()->user()->phone) }}">
+                            @error('phone')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control @error('city') is-invalid @enderror"
+                                id="city" name="city" value="{{ old('city', auth()->user()->city) }}">
+                            @error('city')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
@@ -136,7 +154,7 @@ use Laravel\Fortify\Features;
             </div>
 
             <!-- Two Factor Authentication -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h4 class="mb-0">Two Factor Authentication</h4>
                 </div>
@@ -185,6 +203,50 @@ use Laravel\Fortify\Features;
                             </button>
                         </form>
                     @endif
+                </div>
+            </div>
+
+            <!-- Delete Account -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Delete Account</h4>
+                </div>
+                <div class="card-body">
+                    <p class="card-text text-muted mb-4">
+                        Once your account is deleted, all of its resources and data will be permanently deleted.
+                    </p>
+
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                        Delete Account
+                    </button>
+
+                    <!-- Delete Account Modal -->
+                    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form method="POST" action="{{ route('profile.destroy') }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <div class="modal-body">
+                                        <p>Are you sure you want to delete your account? This action cannot be undone.</p>
+                                        <div class="mb-3">
+                                            <label for="delete_password" class="form-label">Password</label>
+                                            <input type="password" class="form-control" id="delete_password" name="password" required>
+                                            <small class="form-text text-muted">Please enter your password to confirm.</small>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-danger">Delete Account</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

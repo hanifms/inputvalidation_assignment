@@ -128,36 +128,147 @@ RateLimiter::for('login', function (Request $request) {
 });
 ```
 
-# User Authentication Flow Summary
+## 3. User Profile Management System
 
-## Registration and Login Process
+This section details the comprehensive user profile management system implemented in the application.
 
-1. **Register**: Create a new account with email, password and name
-   - Password is automatically hashed using Bcrypt
-   - User record is created in the database
+### 3.1 Enhanced User Model
 
-2. **Enable 2FA**:
-   - Navigate to `/profile` page
-   - Scroll to the "Two Factor Authentication" section
-   - Click "Enable Two-Factor" button (may require password confirmation)
-   - System marks the user account as 2FA-enabled
+The User model has been extended with additional fields to support rich profile information:
 
-3. **Login with 2FA**:
-   - Enter email and password on the login page
-   - System recognizes 2FA is enabled
-   - A 6-digit code is generated and sent via email
-   - User is redirected to the verification page
-   - User enters the code from the email
-   - If correct, user is logged in to the dashboard
+```php
+// database/migrations/2025_06_16_000000_add_profile_fields_to_users_table.php
+Schema::table('users', function (Blueprint $table) {
+    $table->string('nickname')->nullable()->after('name');
+    $table->string('avatar')->nullable()->after('nickname');
+    $table->string('phone')->nullable()->after('email');
+    $table->string('city')->nullable()->after('phone');
+});
+```
 
-## Security Features
+### 3.2 Profile Management Implementation
 
-- **Rate limiting**: 3 login attempts per minute per IP address
-- **Time-limited codes**: 10-minute expiration for 2FA verification codes
-- **Secure email delivery**: Verification codes sent via email
-- **Password confirmation**: Required for enabling/disabling 2FA
-- **Bcrypt hashing**: Automatic salting and secure password storage
+#### 3.2.1 Profile Controller Overview
+
+```php
+// app/Http/Controllers/ProfileController.php
+class ProfileController extends Controller
+{
+    public function update(Request $request)
+    {
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'nickname' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . auth()->id()],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'city' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        auth()->user()->update($request->only(['name', 'nickname', 'email', 'phone', 'city']));
+    }
+
+    public function updateAvatar(Request $request)
+    {
+        $request->validate(['avatar' => ['required', 'image', 'max:2048']]);
+        
+        $user = auth()->user();
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        
+        $avatarPath = $request->file('avatar')->store('avatars', 'public');
+        $user->update(['avatar' => $avatarPath]);
+    }
+
+    public function destroy(Request $request)
+    {
+        $request->validate(['password' => ['required', 'current_password']]);
+        
+        $user = auth()->user();
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        
+        auth()->logout();
+        $user->delete();
+    }
+}
+```
+
+### 3.3 Profile View Implementation
+
+The profile view (`resources/views/profile/show.blade.php`) implements several key features:
+
+#### 3.3.1 Avatar Management
+- Displays current avatar or fallback to name initial
+- Supports file upload with size validation
+- Automatically removes old avatar when updating
+
+#### 3.3.2 Profile Information Form
+- Fields: name, nickname, email, phone, city
+- Real-time validation feedback
+- Success/error message handling
+
+#### 3.3.3 Security Features
+- Password confirmation for sensitive operations
+- CSRF protection on all forms
+- File upload validation and sanitization
+
+### 3.4 Data Storage and Security
+
+#### 3.4.1 Avatar Storage
+- Stored in `storage/app/public/avatars/`
+- Public disk configuration for accessibility
+- Automatic cleanup of old files
+
+#### 3.4.2 Form Validation Rules
+```php
+$rules = [
+    'name' => ['required', 'string', 'max:255'],
+    'nickname' => ['required', 'string', 'max:255'],
+    'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . auth()->id()],
+    'phone' => ['nullable', 'string', 'max:20'],
+    'city' => ['nullable', 'string', 'max:100'],
+    'avatar' => ['required', 'image', 'max:2048'], // 2MB limit
+];
+```
+
+### 3.5 User Interface Integration
+
+The user interface has been enhanced to display profile information in strategic locations:
+
+#### 3.5.1 Navigation Bar Integration
+```blade
+<!-- resources/views/layouts/app.blade.php -->
+<a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button">
+    @if(Auth::user()->avatar)
+        <img src="{{ Storage::url(Auth::user()->avatar) }}" 
+             alt="Profile" 
+             class="rounded-circle me-1" 
+             width="24" height="24">
+    @endif
+    {{ Auth::user()->nickname ?? Auth::user()->name }}
+</a>
+```
+
+### 3.6 Account Management
+
+#### 3.6.1 Account Deletion Process
+1. Password confirmation required
+2. Cleanup of associated files (avatar)
+3. Session invalidation
+4. Database record removal
+
+### 3.7 Security Considerations
+
+- All forms protected with CSRF tokens
+- File upload validation and sanitization
+- Password confirmation for sensitive operations
+- Proper file storage permissions
+- Input validation and sanitization
+- Unique email constraints
+- Secure password handling
 
 ## TL;DR
 
-This Laravel Todo app features email-based two-factor authentication using Laravel Fortify. When users with 2FA enabled log in, they receive a time-limited verification code by email. The system includes Bcrypt password hashing, rate limiting (3 attempts/minute), and a simple user interface for enabling/disabling 2FA from the profile page.
+This Laravel Todo app features email-based two-factor authentication using Laravel Fortify. When users with 2FA enabled log in, they receive a time-limited verification code by email. The system includes Bcrypt password hashing, rate limiting (3 attempts/minute), and a simple user interface for enabling/disabling 2FA from the profile page. Additionally, a comprehensive user profile management system allows users to update their profile information and avatar, with strict validation and security measures in place.
