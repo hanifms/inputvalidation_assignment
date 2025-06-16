@@ -152,3 +152,7 @@ public function register(\Illuminate\Http\Request $request)
 - Consistent validation rules across the application
 - Enhanced security through strict input whitelist validation
 - Improved maintainability through separation of concerns
+
+### Showcase
+https://github.com/user-attachments/assets/b24cdf46-be45-4c18-93c5-2c5a3aebb825
+
