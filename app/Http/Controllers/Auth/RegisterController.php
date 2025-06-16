@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Http\Requests\RegisterRequest;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\JsonResponse;
 
 class RegisterController extends Controller
 {
@@ -48,11 +52,24 @@ class RegisterController extends Controller
      */
     protected function validator(array $data)
     {
+        \Log::info('RegisterController validator method called with data:', $data);
+
+        // Use Validator facade directly to ensure we're validating the correct data
         return Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
-            'nickname' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z\s]+$/'],
+            'nickname' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9_\-]+$/'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            ],
+        ], [
+            'name.regex' => 'Name can only contain letters and spaces.',
+            'nickname.regex' => 'Nickname can only contain letters, numbers, underscores, and dashes.',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
         ]);
     }
 
@@ -70,5 +87,66 @@ class RegisterController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
+    }
+
+    /**
+     * Show the application registration form.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function showRegistrationForm()
+    {
+        return view('auth.register');
+    }
+
+    /**
+     * Handle a registration request for the application.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function register(\Illuminate\Http\Request $request)
+    {
+        // Manually validate the request
+        $rules = [
+            'name' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z\s]+$/'], // Only allow letters and spaces
+            'nickname' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9_\-]+$/'], // Letters, numbers, underscore and dash
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => [
+                'required', 'string', 'min:8', 'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/' // Must contain lowercase, uppercase, number, and special character
+            ],
+        ];
+
+        $messages = [
+            'name.regex' => 'Name can only contain letters and spaces.',
+            'nickname.regex' => 'Nickname can only contain letters, numbers, underscores, and dashes.',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+        ];
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            return redirect('register')
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        // Create the user
+        $user = User::create([
+            'name' => $request->name,
+            'nickname' => $request->nickname,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        // Fire registered event
+        event(new \Illuminate\Auth\Events\Registered($user));
+
+        // Log the user in
+        $this->guard()->login($user);
+
+        // Redirect after registration
+        return redirect($this->redirectPath());
     }
 }

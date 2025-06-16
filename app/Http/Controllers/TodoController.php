@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Todo;
+use App\Http\Requests\TodoRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -34,12 +35,12 @@ class TodoController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(TodoRequest $request)
     {
         $userId = Auth::user()->id;
-        $input = $request->input();
-        $input['user_id'] = $userId;
-        $todoStatus = Todo::create($input);
+        $validated = $request->validated();
+        $validated['user_id'] = $userId;
+        $todoStatus = Todo::create($validated);
 
         return $todoStatus
             ? redirect('todo')->with('success', 'Todo successfully added')

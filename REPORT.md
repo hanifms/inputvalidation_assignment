@@ -269,6 +269,165 @@ The user interface has been enhanced to display profile information in strategic
 - Unique email constraints
 - Secure password handling
 
+## 4. Input Validation for Registration and Login Pages
+
+Form Request classes are used to implement robust input validation for registration and login forms, enhancing security and user experience.
+
+### 4.1 Form Request Implementation
+
+#### 4.1.1 Registration Form Validation
+
+```php
+// app/Http/Requests/RegisterRequest.php
+class RegisterRequest extends FormRequest
+{
+    public function authorize()
+    {
+        return true; // Open to public
+    }
+
+    public function rules()
+    {
+        return [
+            'name' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z\s]+$/'],
+            'nickname' => ['required', 'string', 'max:255', 'regex:/^[A-Za-z0-9_\-]+$/'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => [
+                'required', 'string', 'min:8', 'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/'
+            ],
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'name.regex' => 'Name can only contain letters and spaces.',
+            'nickname.regex' => 'Nickname can only contain letters, numbers, underscores, and dashes.',
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+        ];
+    }
+}
+```
+
+#### 4.1.2 Login Form Validation
+
+```php
+// app/Http/Requests/LoginRequest.php
+class LoginRequest extends FormRequest
+{
+    public function authorize()
+    {
+        return true; // Anyone can attempt to login
+    }
+
+    public function rules()
+    {
+        return [
+            'email' => [
+                'required', 'string', 'email', 'max:255', 
+                'regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/'
+            ],
+            'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'email.regex' => 'Please enter a valid email address.',
+        ];
+    }
+}
+```
+
+#### 4.1.3 Two-Factor Authentication Validation
+
+```php
+// app/Http/Requests/TwoFactorChallengeRequest.php
+class TwoFactorChallengeRequest extends FormRequest
+{
+    public function authorize()
+    {
+        return true; // Anyone with session ID can attempt 2FA
+    }
+
+    public function rules()
+    {
+        return [
+            'code' => ['required', 'string', 'regex:/^\d{6}$/'], // Exactly 6 digits
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'code.regex' => 'The verification code must be exactly 6 digits.',
+        ];
+    }
+}
+```
+
+### 4.2 Controller Integration
+
+Form Request classes are integrated with controllers to provide validation:
+
+#### 4.2.1 Login Controller
+
+```php
+// app/Http/Controllers/Auth/LoginController.php (excerpt)
+public function login(LoginRequest $request)
+{
+    // Request is already validated by the LoginRequest class
+    $credentials = $request->only('email', 'password');
+    $remember = $request->filled('remember');
+    
+    if (Auth::attempt($credentials, $remember)) {
+        $request->session()->regenerate();
+        return $this->sendLoginResponse($request);
+    }
+
+    return $this->sendFailedLoginResponse($request);
+}
+```
+
+#### 4.2.2 Two-Factor Challenge Controller
+
+```php
+// app/Http/Controllers/Auth/TwoFactorChallengeController.php (excerpt)
+public function store(TwoFactorChallengeRequest $request)
+{
+    // Request is already validated by TwoFactorChallengeRequest
+    $userId = $request->session()->get('login.id');
+    $user = User::find($userId);
+
+    if (!$user || $user->two_factor_code !== $request->code || 
+        $user->two_factor_expires_at->isPast()) {
+        return back()->withErrors(['code' => 'Invalid or expired code.']);
+    }
+
+    // Process valid 2FA code...
+}
+```
+
+### 4.3 Security Benefits
+
+1. **Input Whitelisting**: Using regex patterns ensures only permitted character formats can be submitted
+2. **Data Integrity**: Strict validation ensures database consistency
+3. **User Experience**: Clear, specific error messages help users correct their input
+4. **Security**: Prevents potential injection attacks through input validation
+5. **Maintainability**: Separating validation logic from controllers creates cleaner, more focused code
+
+### 4.4 Validation Strategy
+
+- **Whitelist Approach**: Only accepting known good input patterns
+- **Strict Type Checking**: Enforcing data types for all inputs
+- **Custom Error Messages**: Providing helpful feedback to users
+- **Dedicated Classes**: Separating validation logic from business logic
+
+This approach to input validation improves both security and user experience while maintaining clean, maintainable code architecture by keeping controllers focused on their primary responsibilities.
+
 ## TL;DR
 
 This Laravel Todo app features email-based two-factor authentication using Laravel Fortify. When users with 2FA enabled log in, they receive a time-limited verification code by email. The system includes Bcrypt password hashing, rate limiting (3 attempts/minute), and a simple user interface for enabling/disabling 2FA from the profile page. Additionally, a comprehensive user profile management system allows users to update their profile information and avatar, with strict validation and security measures in place.

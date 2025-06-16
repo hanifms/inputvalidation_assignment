@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TwoFactorChallengeRequest;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -24,11 +25,9 @@ class TwoFactorChallengeController extends Controller
     /**
      * Verify the two-factor authentication code.
      */
-    public function store(Request $request)
+    public function store(TwoFactorChallengeRequest $request)
     {
-        $request->validate([
-            'code' => 'required|string',
-        ]);
+        // The request is already validated by the TwoFactorChallengeRequest class
 
         $userId = $request->session()->get('login.id');
 
